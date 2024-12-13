@@ -40,6 +40,7 @@ import (
 )
 
 var ErrNoTunnelSession = errors.New("no tunnel session")
+var session = make(map[string]TunnelSession)
 
 type XTCPVisitor struct {
 	*BaseVisitor
@@ -54,10 +55,15 @@ type XTCPVisitor struct {
 func (sv *XTCPVisitor) Run() (err error) {
 	sv.ctx, sv.cancel = context.WithCancel(sv.ctx)
 
-	if sv.cfg.Protocol == "kcp" {
-		sv.session = NewKCPTunnelSession()
+	if session[sv.cfg.Name] == nil {
+		if sv.cfg.Protocol == "kcp" {
+			sv.session = NewKCPTunnelSession()
+		} else {
+			sv.session = NewQUICTunnelSession(sv.clientCfg)
+		}
+		session[sv.cfg.Name] = sv.session
 	} else {
-		sv.session = NewQUICTunnelSession(sv.clientCfg)
+		sv.session = session[sv.cfg.Name]
 	}
 
 	if sv.cfg.BindPort > 0 {
@@ -88,9 +94,9 @@ func (sv *XTCPVisitor) Close() {
 	if sv.cancel != nil {
 		sv.cancel()
 	}
-	if sv.session != nil {
-		sv.session.Close()
-	}
+	//if sv.session != nil {
+	//sv.session.Close()
+	//}
 }
 
 func (sv *XTCPVisitor) processTunnelStartEvents() {
